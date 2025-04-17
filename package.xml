@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>multi-uav-trace-mbzirc-gt</name>
+  <version>0.0.1</version>
+  <description>
+    Multi UAV Tracing in MBZIRC Ignition Gazebo Simulation with Groundtruth Position
+  </description>
+
+  <maintainer email="xirhxq@gmail.com">xirhxq</maintainer>
+  <author email="xirhxq@gmail.com">xirhxq</author>
+
+  <license>Apache License 2.0</license>
+  
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>nav_msgs</depend>
+  <depend>ignition-transport11</depend>
+  <depend>ignition-msgs8</depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
+
