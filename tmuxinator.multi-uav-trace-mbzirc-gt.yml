@@ -19,3 +19,4 @@ windows:
         - 'ros2 launch mbzirc_ros competition_local.launch.py ign_args:="-v 4 -r coast.sdf"'
         - '. install/setup.bash; ros2 launch multi-uav-trace-mbzirc-gt spawn.launch.py'
         - '. install/setup.bash; ros2 launch multi-uav-trace-mbzirc-gt groundtruth_pose.launch.py'
+        - '. install/setup.bash; ros2 bag record -a'

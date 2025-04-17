@@ -37,8 +37,6 @@ def my_function(context):
                     'R': '0',
                     'P': '0',
                     'Y': '0',
-                    'slot0': 'mbzirc_hd_camera',
-                    'slot0_rpy': '0 30 0',
                     'flightTime': '60',
                     'slot1': 'mbzirc_rf_long_range',
                     'slot1_rpy': '0 0 0'
