@@ -30,6 +30,8 @@ This repository contains a demonstration of multi-UAV formation tracking:
 
 4. To end the simulation, press `Ctrl+B` and then `q`. Make sure that you are in EN mode.
 
+5. To exit Docker container, press `Ctrl+D` in terminal.
+
 ## Options
 
 ### Where to start? Designed prepare points or standard formation points?
