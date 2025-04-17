@@ -2,7 +2,14 @@
 name: multi-uav-trace-mbzirc-gt
 root: .
 tmux_options: -f .tmux.conf
-on_project_start: set -e && colcon build
+on_project_start: > 
+  set -e && 
+  cd ~/mbzirc_ws/src/mbzirc/mbzirc_ign/scripts/ && 
+  python3 set_sea_state.py --sea-state 2 && 
+  cd ~/mbzirc_ws && 
+  colcon build --merge-install --cmake-clean-cache --packages-select mbzirc_ign && 
+  cd ~/ros2_ws && 
+  colcon build
 windows:
   - suav-and-launch:
       layout: main-horizontal
