@@ -297,7 +297,7 @@ private:
         velocity_2d_cmd_ = velocity;
     }
 
-    bool is_at_point(const Eigen::Vector3d &current_pose, const Eigen::Vector3d &target_pose, double tolerance = 0.5) {
+    bool is_at_point(const Eigen::Vector3d &current_pose, const Eigen::Vector3d &target_pose, double tolerance = 2.0) {
         return (current_pose - target_pose).norm() < tolerance;
     }
 
