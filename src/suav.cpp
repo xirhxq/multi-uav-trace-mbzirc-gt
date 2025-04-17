@@ -174,7 +174,7 @@ public:
 
     bool timeToEndPerform() {
         if (!isInPerform()) return false;
-        return state_time_ > 50.0;
+        return state_time_ > 100.0;
     }
 
     void endPerform() {
