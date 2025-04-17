@@ -12,6 +12,7 @@
 #include "sensor_msgs/msg/imu.hpp"
 #include "ros_ign_interfaces/msg/dataframe.hpp"
 #include "rosgraph_msgs/msg/clock.hpp"
+#include "std_msgs/msg/string.hpp"
 
 #include "multi-uav-trace-mbzirc-gt/Utils.h"
 
@@ -51,6 +52,8 @@ public:
                 std::lock_guard<std::mutex> lock(data_mutex_);
                 last_clock_ = *msg;
             });
+
+        state_pub_ = this->create_publisher<std_msgs::msg::String>("uav_" + id_ + "/csm_state", 10);
     }
 
     double get_time() const {
@@ -78,6 +81,12 @@ public:
             last_pose_.pose.position.z);
     }
 
+    void pub_state(const std::string &state) {
+        std_msgs::msg::String state_msg;
+        state_msg.data = state;
+        state_pub_->publish(state_msg);
+    }
+
 private:
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr vel_cmd_pub_;
 
@@ -85,6 +94,8 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_sub_;
 
     rclcpp::Subscription<rosgraph_msgs::msg::Clock>::SharedPtr clock_sub_;
+
+    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr state_pub_;
 
     std::string id_;
 
@@ -201,6 +212,8 @@ private:
         Eigen::Vector3d current_pose = uav_comm_->get_last_pose();
         task_time_ = get_time() - task_begin_time_;
         state_time_ = get_time() - state_begin_time_;
+
+        uav_comm_->pub_state(state_to_string(current_state_));
 
         switch (current_state_) {
             case State::INIT:
