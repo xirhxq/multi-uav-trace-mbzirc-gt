@@ -156,6 +156,10 @@ public:
         stop_flag_ = true;
     }
 
+    bool isInPrepare() {
+        return current_state_ == State::PREPARE;
+    }
+
     bool isReady() {
         return ready_to_perform_;
     }
@@ -408,7 +412,7 @@ int main(int argc, char **argv) {
 
         bool all_ready = true;
         for (auto &task : tasks) {
-            if (!task->isReady() || task->isInPerform()) {
+            if (!task->isReady() || !task->isInPrepare()) {
                 all_ready = false;
                 break;
             }
