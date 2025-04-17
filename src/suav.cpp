@@ -206,7 +206,7 @@ private:
             case State::INIT:
                 if (current_pose.norm() > 1e-3) {
                     spawn_point_ = current_pose;
-                    takeoff_point_ = spawn_point_ + Eigen::Vector3d(0.0, 0.0, 20.0);
+                    takeoff_point_ = spawn_point_ + Eigen::Vector3d(0.0, 0.0, std::stoi(id_) * 2.0);
                     transition_to(State::TAKEOFF);
                 }
                 break;
@@ -262,7 +262,7 @@ private:
     }
 
     double get_my_height() {
-        return 1.0 * std::stoi(id_) + 10;
+        return 10.0;
     }
 
     void set_trace_point(double t) {
