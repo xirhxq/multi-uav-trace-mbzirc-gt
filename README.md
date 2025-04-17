@@ -28,6 +28,7 @@ This repository contains a demonstration of multi-UAV formation tracking:
     tmuxinator start . -p src/multi-uav-trace-mbzirc-gt/tmuxinator.multi-uav-trace-mbzirc-gt.yml
     ```
 
+4. To end the simulation, press `Ctrl+B` and then `q`. Make sure that you are in EN mode.
 
 ## Options
 
@@ -46,3 +47,13 @@ In constructor of `Task` class in `src/suav.cpp`:
 ```
 
 You could choose one by commenting the other.
+
+### Wind settings
+
+Wind is set in `tmuxinator.multi-uav-trace-mbzirc-gt.yml` by
+
+```bash
+python3 set_sea_state.py --sea-state 2
+```
+
+Parameters can be modified according to [official Wiki](https://github.com/osrf/mbzirc/wiki/Configuring-environment-conditions).
