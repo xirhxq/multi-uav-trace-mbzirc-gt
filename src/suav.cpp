@@ -102,7 +102,20 @@ public:
         global_offset_ = Eigen::Vector3d(-1500.0, 0.0, get_my_height());
 
         auto arr = settings["prepare_point"].get<std::vector<double>>();
-        prepare_point_ = Eigen::Vector3d(arr.data()) + global_offset_;
+
+        set_trace_point(0.0);
+        desired_point_ = global_offset_;
+        desired_point_.x() += trace_point_.x();
+        desired_point_.y() += trace_point_.y();
+
+        // ====================
+        // if we start from expected formation at time 0
+        prepare_point_ = desired_point_;
+        
+        // if we start from prepare point
+        // prepare_point_ = Eigen::Vector3d(arr.data()) + global_offset_;
+        // ====================
+
         search_height_ = prepare_point_.z();
 
         spin_thread_ = std::thread([this]() {
@@ -202,7 +215,6 @@ private:
                 break;
             case State::PERFORM:
                 set_trace_point(state_time_);
-                // desired_point_ (3d) = trace_point_(2d) + global_offset_(3d)
                 desired_point_ = global_offset_;
                 desired_point_.x() += trace_point_.x();
                 desired_point_.y() += trace_point_.y();

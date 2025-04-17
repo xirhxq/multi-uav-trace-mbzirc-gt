@@ -27,3 +27,22 @@ This repository contains a demonstration of multi-UAV formation tracking:
     ```bash
     tmuxinator start . -p src/multi-uav-trace-mbzirc-gt/tmuxinator.multi-uav-trace-mbzirc-gt.yml
     ```
+
+
+## Options
+
+### Where to start? Designed prepare points or standard formation points?
+
+In constructor of `Task` class in `src/suav.cpp`:
+
+```cpp
+    // ====================
+    // if we start from expected formation at time 0
+    prepare_point_ = desired_point_;
+    
+    // if we start from prepare point
+    prepare_point_ = Eigen::Vector3d(arr.data()) + global_offset_;
+    // ====================
+```
+
+You could choose one by commenting the other.
