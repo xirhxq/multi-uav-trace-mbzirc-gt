@@ -13,6 +13,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(ignition-transport11 REQUIRED)
 find_package(ignition-msgs8 REQUIRED)
 find_package(ros_ign_interfaces REQUIRED)
+find_package(rosgraph_msgs REQUIRED)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 

@@ -11,6 +11,7 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 #include "ros_ign_interfaces/msg/dataframe.hpp"
+#include "rosgraph_msgs/msg/clock.hpp"
 
 #include "multi-uav-trace-mbzirc-gt/Utils.h"
 
@@ -21,6 +22,8 @@ using namespace Eigen;
 using json = nlohmann::json;
 
 using namespace std::chrono_literals;
+
+#define pi acos(-1.0)
 
 class UAVCommNode : public rclcpp::Node {
 public:
@@ -41,6 +44,18 @@ public:
                 std::lock_guard<std::mutex> lock(data_mutex_);
                 last_pose_ = *msg;
             });
+
+        clock_sub_ = this->create_subscription<rosgraph_msgs::msg::Clock>(
+            "clock", 10,
+            [this](const rosgraph_msgs::msg::Clock::SharedPtr msg) {
+                std::lock_guard<std::mutex> lock(data_mutex_);
+                last_clock_ = *msg;
+            });
+    }
+
+    double get_time() const {
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        return last_clock_.clock.sec + last_clock_.clock.nanosec * 1e-9;
     }
 
     void spin() {
@@ -69,25 +84,35 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_sub_;
 
+    rclcpp::Subscription<rosgraph_msgs::msg::Clock>::SharedPtr clock_sub_;
+
     std::string id_;
 
     mutable std::mutex data_mutex_;
     sensor_msgs::msg::Imu last_imu_;
     geometry_msgs::msg::PoseStamped last_pose_;
+    rosgraph_msgs::msg::Clock last_clock_;
 };
 
 class Task {
 public:
     Task(const json settings)
         : id_(settings["id"]), uav_comm_(std::make_shared<UAVCommNode>(id_)), stop_flag_(false) {
+        
+        global_offset_ = Eigen::Vector3d(-1500.0, 0.0, get_my_height());
 
         auto arr = settings["prepare_point"].get<std::vector<double>>();
-        prepare_point_ = Eigen::Vector3d(arr.data());
+        prepare_point_ = Eigen::Vector3d(arr.data()) + global_offset_;
         search_height_ = prepare_point_.z();
 
         spin_thread_ = std::thread([this]() {
             uav_comm_->spin();
         });
+
+        task_begin_time_ = get_time();
+        task_time_ = get_time() - task_begin_time_;
+        state_begin_time_ = get_time();
+        state_time_ = get_time() - state_begin_time_;
     }
 
     ~Task() {
@@ -95,6 +120,10 @@ public:
         if (spin_thread_.joinable()) {
             spin_thread_.join();
         }
+    }
+
+    double get_time() const {
+        return uav_comm_->get_time();
     }
 
     void run() {
@@ -114,8 +143,21 @@ public:
         stop_flag_ = true;
     }
 
+    bool isReady() {
+        return ready_to_perform_;
+    }
+
+    void startPerform() {
+        transition_to(State::PERFORM);
+    }
+
     bool isInPerform() {
         return current_state_ == State::PERFORM;
+    }
+
+    bool timeToEndPerform() {
+        if (!isInPerform()) return false;
+        return state_time_ > 50.0;
     }
 
     void endPerform() {
@@ -135,6 +177,8 @@ private:
 
     void update() {
         Eigen::Vector3d current_pose = uav_comm_->get_last_pose();
+        task_time_ = get_time() - task_begin_time_;
+        state_time_ = get_time() - state_begin_time_;
 
         switch (current_state_) {
             case State::INIT:
@@ -153,11 +197,19 @@ private:
             case State::PREPARE:
                 control_to_point(current_pose, prepare_point_);
                 if (is_at_point(current_pose, prepare_point_)) {
-                    transition_to(State::PERFORM);
+                    ready_to_perform_ = true;
                 }
                 break;
             case State::PERFORM:
-                velocity2dControl(current_pose, velocity_2d_cmd_);
+                set_trace_point(state_time_);
+                // desired_point_ (3d) = trace_point_(2d) + global_offset_(3d)
+                desired_point_ = global_offset_;
+                desired_point_.x() += trace_point_.x();
+                desired_point_.y() += trace_point_.y();
+                control_to_point(current_pose, desired_point_, 0.4);
+                if (timeToEndPerform()) {
+                    transition_to(State::BACK);
+                }
                 break;
             case State::BACK:
                 control_to_point(current_pose, takeoff_point_);
@@ -174,17 +226,42 @@ private:
 
         std::lock_guard<std::mutex> lock(log_mutex_);
         printf(
-            "#%s | Position: %.2f, %.2f, %.2f | State: %s | Control: (%.2f, %.2f, %.2f)\n",
-            id_.c_str(), current_pose.x(), current_pose.y(), current_pose.z(),
-            state_to_string(current_state_).c_str(),
-            velocity_cmd_.x(), velocity_cmd_.y(), velocity_cmd_.z()
+            "#%s | Time: %.2lf | Position: %.2f, %.2f, %.2f | State: %s(%.2lf s) | Control: (%.2f, %.2f, %.2f) | System Time: %.5lf\n",
+            id_.c_str(), task_time_,
+            current_pose.x(), current_pose.y(), current_pose.z(),
+            state_to_string(current_state_).c_str(), state_time_,
+            velocity_cmd_.x(), velocity_cmd_.y(), velocity_cmd_.z(),
+            get_time()
         );
     }
 
-    void control_to_point(const Eigen::Vector3d &current_pose, const Eigen::Vector3d &target_pose) {
+    double get_my_height() {
+        return 1.0 * std::stoi(id_) + 10;
+    }
+
+    void set_trace_point(double t) {
+        center_point_ = Eigen::Vector2d(
+            t,
+            3 * sin(pi * t / 50.0)
+        );
+        int id = std::stoi(id_);
+        if (id <= 5) {
+            trace_point_ = center_point_ + Eigen::Vector2d(
+                3.0 * cos(pi * t / 50.0 + 2.0 * (id - 1) / 10 * 2 * pi),
+                3.0 * sin(pi * t / 50.0 + 2.0 * (id - 1) / 10 * 2 * pi)
+            );
+        }
+        else {
+            trace_point_ = center_point_ + Eigen::Vector2d(
+                5.0 * cos(pi * t / 50.0 + (2.0 * id - 1) / 10 * 2 * pi),
+                5.0 * sin(pi * t / 50.0 + (2.0 * id - 1) / 10 * 2 * pi)
+            );
+        }
+    }
+
+    void control_to_point(const Eigen::Vector3d &current_pose, const Eigen::Vector3d &target_pose, double kp = 0.2) {
         Eigen::Vector3d delta = target_pose - current_pose;
         
-        double kp = 0.2;
         double max_speed = 5.0;
         Eigen::Vector3d vel = kp * delta;
 
@@ -211,7 +288,7 @@ private:
     void transition_to(State new_state) {
         current_state_ = new_state;
         std::lock_guard<std::mutex> lock(log_mutex_);
-        std::cout << "Transitioned to state: " << state_to_string(current_state_) << std::endl;
+        state_begin_time_ = get_time();
     }
 
     std::string state_to_string(State state) {
@@ -242,6 +319,20 @@ private:
     Eigen::Vector2d velocity_2d_cmd_ = Eigen::Vector2d::Zero();
 
     std::mutex log_mutex_;
+
+    Eigen::Vector3d global_offset_ = Eigen::Vector3d::Zero();
+
+    Eigen::Vector2d center_point_ = Eigen::Vector2d::Zero();
+    Eigen::Vector2d trace_point_ = Eigen::Vector2d::Zero();
+
+    Eigen::Vector3d desired_point_ = Eigen::Vector3d::Zero();
+
+    bool ready_to_perform_ = false;
+
+    double task_begin_time_ = 0.0;
+    double task_time_ = 0.0;
+    double state_begin_time_ = 0.0;
+    double state_time_ = 0.0;
 };
 
 int main(int argc, char **argv) {
@@ -254,43 +345,43 @@ int main(int argc, char **argv) {
     nlohmann::json settings = {
         {
             {"id", "1"},
-            {"prepare_point", {-1450.0, 40.0, 50.0}}
+            {"prepare_point", {2.17, 2.20, 0.0}}
         },
         {
             {"id", "2"},
-            {"prepare_point", {-1450.0, 30.0, 50.0}}
+            {"prepare_point", {-2.61, -1.22, 0.0}}
         },
         {
             {"id", "3"},
-            {"prepare_point", {-1450.0, 20.0, 50.0}}
+            {"prepare_point", {-3.46, 2.15, 0.0}}
         },
         {
             {"id", "4"},
-            {"prepare_point", {-1450.0, 10.0, 50.0}}
+            {"prepare_point", {-5.38, 2.01, 0.0}}
         },
         {
             {"id", "5"},
-            {"prepare_point", {-1450.0, 0.0, 50.0}}
+            {"prepare_point", {0.10, -2.26, 0.0}}
         },
         {
             {"id", "6"},
-            {"prepare_point", {-1450.0, -10.0, 50.0}}
+            {"prepare_point", {7.05, 7.62, 0.0}}
         },
         {
             {"id", "7"},
-            {"prepare_point", {-1450.0, -20.0, 50.0}}
+            {"prepare_point", {2.21, 8.70, 0.0}}
         },
         {
             {"id", "8"},
-            {"prepare_point", {-1450.0, -30.0, 50.0}}
+            {"prepare_point", {-8.30, 3.78, 0.0}}
         },
         {
             {"id", "9"},
-            {"prepare_point", {-1450.0, -40.0, 50.0}}
+            {"prepare_point", {3.03, -4.42, 0.0}}
         },
         {
             {"id", "10"},
-            {"prepare_point", {-1450.0, -50.0, 50.0}}
+            {"prepare_point", {5.91, 0.41, 0.0}}
         }
     };
     
@@ -303,17 +394,16 @@ int main(int argc, char **argv) {
     while (rclcpp::ok()) {
         std::this_thread::sleep_for(100ms);
 
-        bool all_perform = true;
+        bool all_ready = true;
         for (auto &task : tasks) {
-            if (!task->isInPerform()) {
-                all_perform = false;
+            if (!task->isReady() || task->isInPerform()) {
+                all_ready = false;
                 break;
             }
         }
-
-        if (all_perform) {
+        if (all_ready) {
             for (auto &task : tasks) {
-                task->endPerform();
+                task->startPerform();
             }
         }
 
