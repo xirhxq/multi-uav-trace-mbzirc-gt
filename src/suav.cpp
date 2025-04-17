@@ -182,6 +182,10 @@ public:
         transition_to(State::BACK);
     }
 
+    bool hasEnd() {
+        return current_state_ == State::END;
+    }
+
 private:
     enum class State {
         INIT,
@@ -189,7 +193,8 @@ private:
         PREPARE,
         PERFORM,
         BACK,
-        LAND
+        LAND,
+        END
     };
 
     void update() {
@@ -235,6 +240,11 @@ private:
                 break;
             case State::LAND:
                 control_to_point(current_pose, spawn_point_);
+                if (below_height(current_pose, spawn_point_.z())) {
+                    transition_to(State::END);
+                }
+                break;
+            case State::END:
                 break;
         }
 
@@ -299,6 +309,10 @@ private:
 
     bool is_at_point(const Eigen::Vector3d &current_pose, const Eigen::Vector3d &target_pose, double tolerance = 2.0) {
         return (current_pose - target_pose).norm() < tolerance;
+    }
+
+    bool below_height(const Eigen::Vector3d &current_pose, double tolerance = 0.5) {
+        return current_pose.z() < search_height_ + tolerance;
     }
 
     void transition_to(State new_state) {
@@ -427,7 +441,20 @@ int main(int argc, char **argv) {
             std::cout << std::flush;
             task->runOnce();
         }
+
+        bool all_end = true;
+        for (auto &task : tasks) {
+            if (!task->hasEnd()) {
+                all_end = false;
+                break;
+            }
+        }
+        if (all_end) {
+            break;
+        }
     }
+
+    rclcpp::shutdown();
 
     return 0;
 }
