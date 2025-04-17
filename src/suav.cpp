@@ -329,6 +329,7 @@ private:
             case State::PERFORM: return GREEN + "PERFORM" + RESET;
             case State::BACK: return "BACK";
             case State::LAND: return "LAND";
+            case State::END: return "END";
             default: return "UNKNOWN";
         }
     }
