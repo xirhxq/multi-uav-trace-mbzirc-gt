@@ -8,6 +8,7 @@ def generate_launch_description():
             executable='pose_bridge',
             name='pose_bridge',
             output='screen',
+            parameters=[{'use_sim_time': True}],
             arguments=['10']
         ),
     ])
