@@ -250,31 +250,47 @@ int main(int argc, char **argv) {
         rclcpp::shutdown();
     });
 
-    int num = 6;
+    int num = 10;
     nlohmann::json settings = {
         {
             {"id", "1"},
-            {"prepare_point", {-1450.0, 30.0, 50.0}}
+            {"prepare_point", {-1450.0, 40.0, 50.0}}
         },
         {
             {"id", "2"},
-            {"prepare_point", {-1450.0, 20.0, 50.0}}
+            {"prepare_point", {-1450.0, 30.0, 50.0}}
         },
         {
             {"id", "3"},
-            {"prepare_point", {-1450.0, 10.0, 50.0}}
+            {"prepare_point", {-1450.0, 20.0, 50.0}}
         },
         {
             {"id", "4"},
-            {"prepare_point", {-1450.0, 0.0, 50.0}}
+            {"prepare_point", {-1450.0, 10.0, 50.0}}
         },
         {
             {"id", "5"},
-            {"prepare_point", {-1450.0, -10.0, 50.0}}
+            {"prepare_point", {-1450.0, 0.0, 50.0}}
         },
         {
             {"id", "6"},
+            {"prepare_point", {-1450.0, -10.0, 50.0}}
+        },
+        {
+            {"id", "7"},
             {"prepare_point", {-1450.0, -20.0, 50.0}}
+        },
+        {
+            {"id", "8"},
+            {"prepare_point", {-1450.0, -30.0, 50.0}}
+        },
+        {
+            {"id", "9"},
+            {"prepare_point", {-1450.0, -40.0, 50.0}}
+        },
+        {
+            {"id", "10"},
+            {"prepare_point", {-1450.0, -50.0, 50.0}}
         }
     };
     

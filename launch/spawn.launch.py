@@ -53,7 +53,7 @@ def my_function(context):
 def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument(
-            "numbers", default_value=TextSubstitution(text="6")
+            "numbers", default_value=TextSubstitution(text="10")
         ),
         OpaqueFunction(function=my_function)
     ])
